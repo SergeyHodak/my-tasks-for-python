@@ -8,14 +8,19 @@ def remove_all_before(items: list, border: int) -> Iterable:
         (1) если в списке нет элемента до которого нужно удалить остальные элементы, то список не должен измениться;
         (2) если list пустой, то он должен остаться пустым.
     """
-    if border == 7:
-        return items
-    elif border == 0:
-        return []
-    elif border == items[2]:
-        return items[2:]
-    else:
-        return items
+    if border not in items:  # если искомого нет в коробке
+        return items  # вернуть не изменяя
+    else:  # искомый есть в коробке
+        a = 0  # флаг записи
+        b = []  # пустой список для записи на вывод
+        for i in items:  # пробежка по коробке с данными
+            if a == 1:  # если флаг сработал
+                b.append(i)  # запись позиции на вывод
+            else:  # если флаг еще не сработал
+                if i == border:  # если это та позиция которая указана
+                    a = 1  # возводим флаг
+                    b.append(i)  # запись позиции на вывод
+        return b
 
 
 if __name__ == '__main__':
