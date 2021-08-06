@@ -13,47 +13,34 @@ def nearest_value(values: set, one: int) -> int:
     - В ряде могут быть как положительные, так и отрицательные числа, но они всегда целые;
     - Ряд не отсортирован и состоит из уникальных чисел.
     """
-    values = sorted(values)
-    i = 0
-    n = len(values)
-    for i in range(0, n):
-        if values[0] > one:
-            return values[0]
-        elif values[i] == one:
-            return values[i]
-        elif i+1 == n: #если следующий прошод наступит на последнюю сравниваемую
-            if values[-1] == one: # если последняя сравниваемая ровна искомой
-                return values[-1]
-            elif values[-1] < one: #если последняя сравниваемая меньше искомой
-                return values[-1]
-            else: #есле последний больше чем искомая
-                left = one - values[i]
-                right = values[i + 1] - one
-                if left == right:
-                    return values[i]
-                elif right < left:
-                    return values[i + 1]
-                else:
-                    return values[i]
-        elif values[i] < one:
-            if values[i+1] == one:
-                return values[i+1]
-            elif values[i+1] > one:
-                left = one - values[i]
-                right = values[i+1] - one
-                if left == right:
-                    return values[i]
-                elif right < left:
-                    return values[i+1]
-                else:
-                    return values[i]
+    values = sorted(values)  # сортировка
+    if one in values:  # если "one" присутствует в "values"
+        return one  # вернуть результат
+    a = []  # пустой список для значений которые меньше чем "one"
+    b = []  # пустой список для значений которые больше чем "one"
+    for i in range(0, len(values)):  # пробежка по отсортированному списку
+        if values[i] < one:  # если значение в данной позиции меньше чем "one"
+            a.append(values[i])  # добавили в список
+        else:  # значение больше чем "one"
+            b.append(values[i])  # добавить в список
+    if len(a) == 0:  # если значений которые меньше чем "one" нету
+        return b[0]  # выдать ближайший из списка "b"
+    elif len(b) == 0:  # если значений которые больше чем "one" нету
+        return a[-1]  # выбать последнее из списка меньших
+    elif one - a[-1] == b[0] - one:  # если растояние одинаковое
+        return a[-1]  # отдать меньшее по значению
+    else:  # растояние разное
+        if one - a[-1] < b[0] - one:  # если "a" ближе к "one"  чем "b"
+            return a[-1]  # выдать ближайший результат
+        else:  # если "b" ближе к "one"  чем "a"
+            return b[0]  # выдать ближайший результат
 
 
 if __name__ == '__main__':
-    print("Example:")
+    print("Пример:")
     print(nearest_value([4, 7, 10, 11, 12, 17], 9))
 
-    # These "asserts" are used for self-checking and not for an auto-testing
+    # Эти "asserts" используются для самопроверки, а не для автоматического тестирования.
     assert nearest_value({4, 7, 10, 11, 12, 17}, 9) == 10
     assert nearest_value({4, 7, 10, 11, 12, 17}, 8) == 7
     assert nearest_value({4, 8, 10, 11, 12, 17}, 9) == 8
@@ -62,4 +49,4 @@ if __name__ == '__main__':
     assert nearest_value({4, 7, 10, 11, 12, 17}, 100) == 17
     assert nearest_value({5, 10, 8, 12, 89, 100}, 7) == 8
     assert nearest_value({-1, 2, 3}, 0) == -1
-    print("Coding complete? Click 'Check' to earn cool rewards!")
+    print("Кодирование завершено? Нажмите 'Check', чтобы получить отличные награды!")
