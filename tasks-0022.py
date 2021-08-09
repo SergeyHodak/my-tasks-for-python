@@ -9,6 +9,8 @@ def days_diff(a, b):
     Разница между днями всегда будет положительной или нулем, не забывайте
     про абсолютное значение.
     """
+    if a == b:  # если нет разницы между датами
+        return 0  # выдать ноль
     from datetime import datetime  # Модуль datetime предоставляет классы для обработки времени и даты разными способами
     a = datetime(a[0], a[1], a[2])  # превратить в данные для работы с модулем
     b = datetime(b[0], b[1], b[2])  # превратить в данные для работы с модулем
@@ -20,11 +22,11 @@ def days_diff(a, b):
 
 
 if __name__ == '__main__':
-    print("Пример:")
+    print("Example:")
     print(days_diff([1, 1, 1], [9999, 12, 31]))  # 3652058
 
-    # Эти "asserts" используются для самопроверки, а не для автоматического тестирования.
+    # These "asserts" are used for self-checking and not for an auto-testing
     assert days_diff((1982, 4, 19), (1982, 4, 22)) == 3
     assert days_diff((2014, 1, 1), (2014, 8, 27)) == 238
     assert days_diff((2014, 8, 27), (2014, 1, 1)) == 238
-    print("Кодирование завершено? Нажмите 'Check', чтобы получить отличные награды!")
+    print("Coding complete? Click 'Check' to earn cool rewards!")
