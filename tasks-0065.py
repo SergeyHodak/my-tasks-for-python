@@ -9,18 +9,10 @@ def is_acceptable_password(password: str) -> bool:
         должен содержать хотя бы одну цифру, но не может состоять только из цифр.
     """
     if len(password) > 6:  # если здесль более шести символов
-        if len(set(string.digits).intersection(password)) >= 1:  # если присутствуют цифры
-            if len(set(string.ascii_lowercase).intersection(password)) > 0:  # присутствует строчная буква
+        if len(set(string.digits).intersection(password)) > 0:  # если присутствуют цифры
+            if len(set(string.ascii_lowercase).intersection(password.lower())) > 0:  # присутствует строчная буква
                 return True  # все ок есть и цифры и символов 6+
-            elif len(set(string.ascii_uppercase).intersection(password)) > 0:  # буквы в верхнем регистре
-                return True  # все ок есть и цифры и символов 6+
-            else:
-                return False  # не подходит
-            return True  # все ок есть и цифры и символов 6+
-        else:  # цифры отсутствуют
-            return False  # не подходит
-    else:  # символов мение 6
-        return False  # выдаем сообщение ото том что это не истинное сообщение пароля
+    return False  # фальшивый пароль (6 или мение символов) или (не содержит цифр) или (не содержит букв)
 
 
 if __name__ == '__main__':
