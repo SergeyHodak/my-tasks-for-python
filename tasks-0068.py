@@ -12,7 +12,7 @@ def is_acceptable_password(password: str) -> bool:
         должен содержать 3 разных буквы (или цифры), даже если он длиннее 10
     """
 
-    def dop(password):  # доп функция, связанная с последним условием
+    def dop(password):  # доп функция, уникален ли пароль
         a = []  # пустой список
         for i in range(0, len(password)):  # пробужка по символам введенного пароля
             a += [str(password[i]) + str(
@@ -24,37 +24,19 @@ def is_acceptable_password(password: str) -> bool:
             return False  # не подходит
 
     if 10 > len(password) > 6:  # если здесль более шести символов и меньше 10
-        if dop(password) == False:  # не прошел проверку уникальности
-            return False  # не подходит
-        if "password" in password:  # если есть слово "password"
-            return False  # не подходит
-        elif "PASSWORD" in password:  # если есть слово "PASSWORD"
-            return False  # не подходит
-        elif len(set(string.digits).intersection(password)) > 0:  # если присутствуют цифры
-            if len(set(string.ascii_lowercase).intersection(password)) > 0:  # присутствует строчная буква
-                return True  # все ок есть и цифры и символов 6+
-            elif len(set(string.ascii_uppercase).intersection(password)) > 0:  # буквы в верхнем регистре
-                return True  # все ок есть и цифры и символов 6+
-            else:  # букв нету
-                return False  # не подходит
-        else:  # цифры отсутствуют
-            return False  # не подходит
+        if dop(password) and "password" not in password.lower():  # уникален и нет слова "password"
+            if len(set(string.digits).intersection(password)) > 0:  # если присутствуют цифры
+                if len(set(string.ascii_lowercase).intersection(password.lower())) > 0:  # присутствует строчная буква
+                    return True  # все ок есть и цифры и символов 6+
     elif 9 < len(password):  # если пароль длинней чем 9 символов
-        if dop(password) == False:  # не прошел проверку уникальности
-            return False  # не подходит
-        if "password" in password:  # если есть слово "password"
-            return False  # не подходит
-        elif "PASSWORD" in password:  # если есть слово "PASSWORD"
-            return False  # не подходит
-        else:  # если нету таких слов
+        if dop(password) and "password" not in password.lower():  # уникален и нет слова "password"
             return True  # все ок
-    else:  # символов мение 6
-        return False  # выдаем сообщение ото том что это не истинное сообщение пароля
+    return False  # выдаем сообщение ото том что это не истинное сообщение пароля
 
 
 if __name__ == '__main__':
     print("Пример:")
-    print(is_acceptable_password('aaaaaa1'))
+    print(is_acceptable_password('aaaaaa1w'))
 
     # Эти "asserts" используются только для самопроверки и не требуются для автоматического тестирования.
     assert is_acceptable_password('short') == False
