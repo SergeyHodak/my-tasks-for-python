@@ -6,6 +6,28 @@ def isometric_strings(a, b):
     другой строки. Два или более символа одной строки могут соответствовать
     одному символу другой строки, но не наоборот.
     """
+    # <<set(a)>> удаляет повторяющиеся элементы, и делает из этого контейнер с уникальными элементами
+    # <<zip(a, b)>> собирает кортеж с пар значений, в виде (ключь(a), значение(b))
+    return len(set(zip(a, b))) == len(set(a))  # описание выше. если не сравнивается выдаст фальш
+
+
+if __name__ == '__main__':
+    print("Пример:")
+    print(isometric_strings('add', 'egg'))  # True
+    print(isometric_strings('gogopy', 'doodle'))  # False
+    print(isometric_strings("paper", "words"))  # False
+    print(isometric_strings('', ''))  # True
+    print(isometric_strings("paper", "title"))  # True
+
+    # Эти "asserts" используются только для самопроверки и не требуются для автоматического тестирования.
+    assert isometric_strings('add', 'egg') == True
+    assert isometric_strings('foo', 'bar') == False
+    assert isometric_strings('', '') == True
+    assert isometric_strings('all', 'all') == True
+    assert isometric_strings('gogopy', 'doodle') == False
+    print("Кодирование завершено? Нажмите 'Check', чтобы получить отличные награды!")
+
+    ''' Мое первое решение этой задачи
     def forma(x: str):  # анализ аргумента
         e = str()  # пустая строка
         for i in range(0, len(x)):  # пробежка по первому аргументу
@@ -32,20 +54,4 @@ def isometric_strings(a, b):
             return True  # все супер
     else:  # если не сравниваются
         return False  # фигня
-
-
-if __name__ == '__main__':
-    print("Example:")
-    print(isometric_strings('add', 'egg'))  # True
-    print(isometric_strings('gogopy', 'doodle'))  # False
-    print(isometric_strings("paper", "words"))  # False
-    print(isometric_strings('', ''))  # True
-    print(isometric_strings("paper", "title"))  # True
-
-    # These "asserts" are used for self-checking and not for an auto-testing
-    assert isometric_strings('add', 'egg') == True
-    assert isometric_strings('foo', 'bar') == False
-    assert isometric_strings('', '') == True
-    assert isometric_strings('all', 'all') == True
-    assert isometric_strings('gogopy', 'doodle') == False
-    print("Coding complete? Click 'Check' to earn cool rewards!")
+    '''
