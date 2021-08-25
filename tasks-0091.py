@@ -45,9 +45,23 @@ def sum_light(els: List[datetime], start_watching: Optional[datetime] = None, en
         a = 0  # для хранения в себе информации о включенной лампе, в данном диапазоне времени
         for i in range(0, len(els), 1):  # пробежка по els от нуля до конца с шагом 1
             if i % 2 == 0:  # при четной позиции лампа включается
-                if чото на проверять тут надо при включении
+                if start_watching < els[i] < end_watching and i == len(els) - 1:  # если временная позиция между, и она последняя
+                    a += (end_watching - els[i]).total_seconds()  # записываем результат в секундах
+                elif i == len(els) - 1 and start_watching > els[i] and end_watching > els[i]:  # если поз последняя и (старт и финиш больше этой позиции)
+                    a += (end_watching - start_watching).total_seconds()  # записываем результат в секундах
             else:  # при нечетной лампа выключается
-                if а тат напроверять при выключении
+                if start_watching < els[i] < end_watching and start_watching < els[i-1]:  # время между маркерами, и пред поз больше стартового маркера
+                    a += (els[i] - els[i-1]).total_seconds()  # записываем результат в секундах
+                elif start_watching < els[i] < end_watching and start_watching > els[i-1]:  # время между маркерами, и пред поз меньше стартового маркера
+                    a += (els[i] - start_watching).total_seconds()  # записываем результат в секундах
+                elif end_watching < els[i] and start_watching < els[i-1] and end_watching > els[i-1]:  # позиция больше финишного маркера, пред поз больше стартового маркера, и финиш больше пред поз
+                    a += (end_watching - els[i-1]).total_seconds()  # записываем результат в секундах
+                elif (end_watching < els[i] and els[i-1] < start_watching) or \
+                        (end_watching == els[i] and start_watching == els[i-1]) or \
+                        (end_watching < els[i] and els[i-1] == start_watching) or \
+                        (end_watching == els[i] and els[i-1] < start_watching):  # (отрезок с обеих строн вылазит за мпромежуток маркеров) или (если позиции совпадают с маркерами) или (если поз больше финиша и пред поз равна стартовому) или (поз = финишу и старт больше пред поз)
+                    a += (end_watching - start_watching).total_seconds()  # записываем результат в секундах
+        return int(a)  # преврящает число внутри скобок, в целое. и отправляем получателю
 
 
 if __name__ == '__main__':
