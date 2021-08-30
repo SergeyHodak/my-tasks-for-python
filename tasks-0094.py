@@ -21,6 +21,36 @@ from typing import List, Optional, Union, Tuple
 """
 
 
+def unlimited_space_with_lots_of_lamps(a, b, d, lamp_number, position_in_time):  # под функция (неограниченное пространство с большим количеством ламп)
+    if a[lamp_number] == 0:  # эта лампа не включена
+        a[lamp_number] = 1  # в словарь этой лампы ставлю отметку что она включена
+        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+        if c.count("1") == 1:  # включена одна
+            b = position_in_time  # сохраняю сюда время для старта калькуляции
+    else:  # эта лампа включена
+        a[lamp_number] = 0  # в словарь этой лампы ставлю отметку что она выключена
+        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+        if c.count("1") == 0:  # # все лампы выключены
+            d += (position_in_time - b).total_seconds()  # записываем результат в секундах
+    return a, b, d
+
+
+def limited_to_starting_with_a_lot_of_lamps(a, b, d, lamp_number, position_in_time, start_watching):  # ограничен стартом с большим количеством ламп
+    if a[lamp_number] == 0:  # эта лампа не включена
+        a[lamp_number] = 1  # в словарь отметим: включена
+        if start_watching <= position_in_time:  # поз>=старта
+            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+            if c.count("1") == 1:  # включена одна
+                b = position_in_time  # сохраняю сюда время для старта калькуляции
+    else:  # эта лампа включена
+        a[lamp_number] = 0  # в словарь этой лампы ставлю отметку что она выключена
+        if start_watching <= position_in_time:  # поз>=старта
+            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+            if c.count("1") == 0:  # # все лампы выключены
+                d += (position_in_time - b).total_seconds()  # записываем результат в секундах
+    return a, b, d
+
+
 def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: Optional[datetime] = None, end_watching: Optional[datetime] = None) -> int:
     L = int(0)  # флаг того что здесь нету типа данных "tuple"
     for i in range(0, len(els)):  # пробежка по els
@@ -74,61 +104,22 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
                 a["без номера"] = 0  # лампа которой не указали номер, и ее состояние выкл=0
 
         d = 0  # переменная для хранения времени на выдачу
+        b = 0  # на всякий пожарный
         if start_watching == None and end_watching == None:  # если старт и финиш не заданы
             for i in range(0, len(els)):  # пробежка по кнопкам
                 if type(els[i]) == tuple:  # если здесь тип tuple
-                    if a[els[i][1]] == 0:  # эта лампа не включена
-                        a[els[i][1]] = 1  # в словарь этой лампы ставлю отметку что она включена
-                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                        if c.count("1") == 1:  # включена одна
-                            b = els[i][0]  # сохраняю сюда время для старта калькуляции
-                    else:  # эта лампа включена
-                        a[els[i][1]] = 0  # в словарь этой лампы ставлю отметку что она выключена
-                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                        if c.count("1") == 0:  # # все лампы выключены
-                            d += (els[i][0] - b).total_seconds()  # записываем результат в секундах
+                    a, b, d = unlimited_space_with_lots_of_lamps(a, b, d, els[i][1], els[i][0])
                 else:  # здесь объект datetime
-                    if a["без номера"] == 0:  # эта лампа не включена
-                        a["без номера"] = 1  # в словарь этой лампы ставлю отметку что она включена
-                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                        if c.count("1") == 1:  # включена одна
-                            b = els[i]  # сохраняю сюда время для старта калькуляции
-                    else:  # эта лампа включена
-                        a["без номера"] = 0  # в словарь этой лампы ставлю отметку что она выключена
-                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                        if c.count("1") == 0:  # # все лампы выключены
-                            d += (els[i] - b).total_seconds()  # записываем результат в секундах
+                    a, b, d = unlimited_space_with_lots_of_lamps(a, b, d, "без номера", els[i])
             return int(d)
 
         if end_watching == None:  # если финиш не задан
             b = start_watching  # на всякий пожарный
             for i in range(0, len(els)):  # пробежка по кнопкам
                 if type(els[i]) == tuple:  # если здесь тип tuple
-                    if a[els[i][1]] == 0:  # эта лампа не включена
-                        a[els[i][1]] = 1  # в словарь отметим: включена
-                        if start_watching <= els[i][0]:  # поз>=старта
-                            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                            if c.count("1") == 1:  # включена одна
-                                b = els[i][0]  # сохраняю сюда время для старта калькуляции
-                    else:  # эта лампа включена
-                        a[els[i][1]] = 0  # в словарь этой лампы ставлю отметку что она выключена
-                        if start_watching <= els[i][0]:  # поз>=старта
-                            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                            if c.count("1") == 0:  # # все лампы выключены
-                                d += (els[i][0] - b).total_seconds()  # записываем результат в секундах
+                    a, b, d = limited_to_starting_with_a_lot_of_lamps(a, b, d, els[i][1], els[i][0], start_watching)
                 else:  # здесь объект datetime
-                    if a["без номера"] == 0:  # эта лампа не включена
-                        a["без номера"] = 1  # в словарь этой лампы ставлю отметку что она включена
-                        if start_watching <= els[i]:  # поз>=старта
-                            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                            if c.count("1") == 1:  # включена одна
-                                b = els[i]  # сохраняю сюда время для старта калькуляции
-                    else:  # эта лампа включена
-                        a["без номера"] = 0  # в словарь этой лампы ставлю отметку что она выключена
-                        if start_watching <= els[i]:  # поз>=старта
-                            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                            if c.count("1") == 0:  # # все лампы выключены
-                                d += (els[i] - b).total_seconds()  # записываем результат в секундах
+                    a, b, d = limited_to_starting_with_a_lot_of_lamps(a, b, d, "без номера", els[i], start_watching)
             return int(d)
 
         b = start_watching  # на всякий пожарный
