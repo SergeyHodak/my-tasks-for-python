@@ -2,36 +2,6 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Union, Tuple
 
 
-def unlimited_space_with_lots_of_lamps(a, b, d, lamp_number, position_in_time):  # неограниченное пространство с большим количеством ламп
-    if a[lamp_number] == 0:  # эта лампа не включена
-        a[lamp_number] = 1  # в словарь этой лампы ставлю отметку что она включена
-        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-        if c.count("1") == 1:  # включена одна
-            b = position_in_time  # сохраняю сюда время для старта калькуляции
-    else:  # эта лампа включена
-        a[lamp_number] = 0  # в словарь этой лампы ставлю отметку что она выключена
-        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-        if c.count("1") == 0:  # # все лампы выключены
-            d += (position_in_time - b).total_seconds()  # записываем результат в секундах
-    return a, b, d
-
-
-def limited_to_starting_with_a_lot_of_lamps(a, b, d, lamp_number, position_in_time, start_watching):  # ограничен стартом с большим количеством ламп
-    if a[lamp_number] == 0:  # эта лампа не включена
-        a[lamp_number] = 1  # в словарь отметим: включена
-        if start_watching <= position_in_time:  # поз>=старта
-            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-            if c.count("1") == 1:  # включена одна
-                b = position_in_time  # сохраняю сюда время для старта калькуляции
-    else:  # эта лампа включена
-        a[lamp_number] = 0  # в словарь этой лампы ставлю отметку что она выключена
-        if start_watching <= position_in_time:  # поз>=старта
-            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-            if c.count("1") == 0:  # # все лампы выключены
-                d += (position_in_time - b).total_seconds()  # записываем результат в секундах
-    return a, b, d
-
-
 def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: Optional[datetime] = None,
               end_watching: Optional[datetime] = None, operating: Optional[timedelta] = None) -> int:
     """
@@ -56,8 +26,74 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
     V +4ый аргумент - время работы лампочек. Аргумент времени работы передается как объект timedelta.
       По аналогии с предыдущими миссиями - если он не передан, значит лампа работает бесконечно.
     """
+    def unlimited_space_with_lots_of_lamps(a, b, d, lamp_number, position_in_time):  # неограниченное пространство с большим количеством ламп
+        if a[lamp_number] == 0:  # эта лампа не включена
+            a[lamp_number] = 1  # в словарь этой лампы ставлю отметку что она включена
+            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+            if c.count("1") == 1:  # включена одна
+                b = position_in_time  # сохраняю сюда время для старта калькуляции
+        else:  # эта лампа включена
+            a[lamp_number] = 0  # в словарь этой лампы ставлю отметку что она выключена
+            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+            if c.count("1") == 0:  # # все лампы выключены
+                d += (position_in_time - b).total_seconds()  # записываем результат в секундах
+        return a, b, d
 
-    L = int(0)  # флаг того что здесь нету типа данных "tuple"
+    def limited_to_starting_with_a_lot_of_lamps(a, b, d, lamp_number, position_in_time, start_watching):  # ограничен стартом с большим количеством ламп
+        if a[lamp_number] == 0:  # эта лампа не включена
+            a[lamp_number] = 1  # в словарь отметим: включена
+            if start_watching <= position_in_time:  # поз>=старта
+                c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+                if c.count("1") == 1:  # включена одна
+                    b = position_in_time  # сохраняю сюда время для старта калькуляции
+        else:  # эта лампа включена
+            a[lamp_number] = 0  # в словарь этой лампы ставлю отметку что она выключена
+            if start_watching <= position_in_time:  # поз>=старта
+                c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+                if c.count("1") == 0:  # # все лампы выключены
+                    d += (position_in_time - b).total_seconds()  # записываем результат в секундах
+        return a, b, d
+
+    def a_piece_of_time_with_a_lot_of_lamps(a, b, d, lamp_number, position_in_time, start_watching, end_watching, i, els):  # кусок времени с большим количеством ламп
+        flag_for_loop = 0  # флаг для сброса цикла
+        if (start_watching <= position_in_time < end_watching) and (1 not in dict.values(a)):  # (старт <= поз < финиш) и (ни одна лампа еще не включена)
+            a[lamp_number] = 1  # в словарь этой лампы ставлю отметку что она включена
+            b = position_in_time  # сохраняю сюда время для старта калькуляции
+        elif (start_watching <= position_in_time < end_watching) and (a[lamp_number] == 0):  # (старт <= поз < финиш) и (эта лампа не включена)
+            a[lamp_number] = 1  # в словарь этой лампы ставлю отметку что она включена
+            c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+            if c.count("1") == 1:  # включена одна
+                b = position_in_time  # сохраняю сюда время для старта калькуляции
+        elif position_in_time < start_watching and a[lamp_number] == 0:  # (поз < старт) и (эта лампа не включена)
+            a[lamp_number] = 1  # в словарь этой лампы ставлю отметку что она включена
+        elif (start_watching <= position_in_time <= end_watching) and (a[lamp_number] == 1):  # (старт <= поз <= финиш) и (эта лампа включена)
+            a[lamp_number] = 0  # в словарь этой лампы ставлю отметку что она выключена
+            if i == len(els) - 1:  # если это последний переключатель
+                c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+                if c.count("1") == 0:  # если все лампы выключились
+                    d += (position_in_time - b).total_seconds()  # записываем результат в секундах
+                else:  # есть включенные лампы
+                    d += (end_watching - b).total_seconds()  # записываем результат в секундах
+            else:  # это не последний переключатель
+                c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+                if c.count("1") == 0:  # если все лампы выключились
+                    d += (position_in_time - b).total_seconds()  # записываем результат в секундах
+        elif position_in_time < start_watching and a[lamp_number] == 1:  # если (поз < старт) и (эта лампа включена)
+            a[lamp_number] = 0  # в словарь этой лампы ставлю отметку что она выключена
+        elif end_watching <= position_in_time:  # если позиция больше либо равна финишу
+            if a[lamp_number] == 1:  # если лампа включена
+                d += (end_watching - b).total_seconds()  # записываем результат в секундах
+                flag_for_loop = 1  # прервать цикл
+            else:  # если лампа выключена
+                c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
+                if c.count("1") == 0:  # если все лампы выключились
+                    flag_for_loop = 1  # прервать цикл
+                else:  # если есть включенные лампы
+                    d += (end_watching - b).total_seconds()  # записываем результат в секундах
+                    flag_for_loop = 1  # прервать цикл
+        return a, b, d, flag_for_loop
+
+    L = 0  # флаг того что здесь нету типа данных "tuple"
     for i in range(0, len(els)):  # пробежка по els
         if type(els[i]) == tuple:  # если здесь тип tuple
             L += 1  # записать в флаг
@@ -67,8 +103,7 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
             if not start_watching:  # если нет времени начала подсчета
                 a = 0  # аргумент на вывод
                 for i in range(0, len(els), 2):  # пробежка по els от нуля до конца с шагом 2
-                    a += (els[i + 1] - els[
-                        i]).total_seconds()  # от старшего отнимаем меншее.вытягиваем с этого объекта секунды
+                    a += (els[i + 1] - els[i]).total_seconds()  # от старшего отнимаем меншее.вытягиваем с этого объекта секунды
                 return int(a)  # преврящает число внутри скобок, в целое. и отправляем получателю
             else:  # есть время подсчета
                 a = 0  # аргумент на вывод
@@ -84,26 +119,22 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
                 if i % 2 == 0:  # при четной позиции лампа включается
                     if start_watching < els[i] < end_watching and i == len(els) - 1:  # между, и последняя
                         a += (end_watching - els[i]).total_seconds()  # записываем результат в секундах
-                    elif i == len(els) - 1 and start_watching > els[i] and end_watching > els[
-                        i]:  # если поз последняя и (старт и финиш больше этой позиции)
+                    elif i == len(els) - 1 and start_watching > els[i] and end_watching > els[i]:  # если поз последняя и (старт и финиш больше этой позиции)
                         a += (end_watching - start_watching).total_seconds()  # записываем результат в секундах
                 else:  # при нечетной лампа выключается
                     if start_watching < els[i] < end_watching and start_watching < els[i - 1]:  # между, и поз-1>старт
                         a += (els[i] - els[i - 1]).total_seconds()  # записываем результат в секундах
-                    elif (start_watching < els[i] < end_watching) and (
-                            start_watching > els[i - 1]):  # между, и поз-1 < старт
+                    elif (start_watching < els[i] < end_watching) and (start_watching > els[i - 1]):  # между, и поз-1 < старт
                         a += (els[i] - start_watching).total_seconds()  # записываем результат в секундах
-                    elif (end_watching < els[i]) and (start_watching < els[i - 1]) and (end_watching > els[
-                        i - 1]):  # позиция больше финишного маркера, пред поз больше стартового маркера, и финиш больше пред поз
+                    elif (end_watching < els[i]) and (start_watching < els[i - 1]) and (end_watching > els[i - 1]):  # позиция больше финишного маркера, пред поз больше стартового маркера, и финиш больше пред поз
                         a += (end_watching - els[i - 1]).total_seconds()  # записываем результат в секундах
                     elif (end_watching < els[i] and els[i - 1] < start_watching) or \
                             (end_watching == els[i] and start_watching == els[i - 1]) or \
                             (end_watching < els[i] and els[i - 1] == start_watching) or \
-                            (end_watching == els[i] and els[
-                                i - 1] < start_watching):  # (отрезок с обеих строн вылазит за мпромежуток маркеров) или (если позиции совпадают с маркерами) или (если поз больше финиша и пред поз равна стартовому) или (поз = финишу и старт больше пред поз)
+                            (end_watching == els[i] and els[i - 1] < start_watching):  # (отрезок с обеих строн вылазит за мпромежуток маркеров) или (если позиции совпадают с маркерами) или (если поз больше финиша и пред поз равна стартовому) или (поз = финишу и старт больше пред поз)
                         a += (end_watching - start_watching).total_seconds()  # записываем результат в секундах
             return int(a)  # преврящает число внутри скобок, в целое. и отправляем получателю
-    else:  # здесь много ламп
+    else:
         a = {}  # создадим словарь для состояния ламп
         for i in range(0, len(els)):  # пробежка по кнопкам
             if type(els[i]) == tuple:  # если здесь тип tuple
@@ -133,78 +164,13 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
         b = start_watching  # на всякий пожарный
         for i in range(0, len(els)):  # пробежка по кнопкам
             if type(els[i]) == tuple:  # если здесь тип tuple
-                if (start_watching <= els[i][0] < end_watching) and (
-                        1 not in dict.values(a)):  # (старт <= поз < финиш) и (ни одна лампа еще не включена)
-                    a[els[i][1]] = 1  # в словарь этой лампы ставлю отметку что она включена
-                    b = els[i][0]  # сохраняю сюда время для старта калькуляции
-                elif (start_watching <= els[i][0] < end_watching) and (
-                        a[els[i][1]] == 0):  # (старт <= поз < финиш) и (эта лампа не включена)
-                    a[els[i][1]] = 1  # в словарь этой лампы ставлю отметку что она включена
-                    c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                    if c.count("1") == 1:  # включена одна
-                        b = els[i][0]  # сохраняю сюда время для старта калькуляции
-                elif els[i][0] < start_watching and a[
-                    els[i][1]] == 0:  # если (поз < старт) и (эта лампа еще не включена)
-                    a[els[i][1]] = 1  # в словарь этой лампы ставлю отметку что она включена
-                elif (start_watching <= els[i][0] <= end_watching) and (
-                        a[els[i][1]] == 1):  # (старт <= поз <= финиш) и (эта лампа включена)
-                    a[els[i][1]] = 0  # в словарь этой лампы ставлю отметку что она выключена
-                    c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                    if c.count("1") == 0:  # все лампы выключены
-                        d += (els[i][0] - b).total_seconds()  # записываем результат в секундах
-                elif els[i][0] < start_watching and a[els[i][1]] == 1:  # если (поз < старт) и (эта лампа включена)
-                    a[els[i][1]] = 0  # в словарь этой лампы ставлю отметку что она выключена
-                elif end_watching <= els[i][0]:  # если позиция больше либо равна финишу
-                    if a[els[i][1]] == 1:  # если лампа включена
-                        d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                        break  # прервать цикл
-                    else:  # если лампа выключена
-                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                        if c.count("1") == 0:  # если все лампы выключились
-                            break  # прервать цикл
-                        else:  # если есть включенные лампы
-                            d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                            break  # прервать цикл
+                a, b, d, flag_for_loop = a_piece_of_time_with_a_lot_of_lamps(a, b, d, els[i][1], els[i][0], start_watching, end_watching, i, els)
+                if flag_for_loop == 1:  # если активирован флаг прерыва цикла
+                    break  # прервать цикл
             else:  # здесь объект datetime
-                if (start_watching <= els[i] < end_watching) and (
-                        1 not in dict.values(a)):  # (старт <= поз < финиш) и (ни одна лампа еще не включена)
-                    a["без номера"] = 1  # в словарь этой лампы ставлю отметку что она включена
-                    b = els[i]  # сохраняю сюда время для старта калькуляции
-                elif (start_watching <= els[i] < end_watching) and (
-                        a["без номера"] == 0):  # (старт <= поз < финиш) и (эта лампа еще не включена)
-                    a["без номера"] = 1  # в словарь этой лампы ставлю отметку что она включена
-                    c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                    if c.count("1") == 1:  # зажжена только одна лампа, и она зажглась сейчас
-                        b = els[i]  # сохраняю сюда время для старта калькуляции
-                elif els[i] < start_watching and a[
-                    "без номера"] == 0:  # если (поз < старт) и (эта лампа еще не включена)
-                    a["без номера"] = 1  # в словарь этой лампы ставлю отметку что она включена
-                elif (start_watching <= els[i] <= end_watching) and (
-                        a["без номера"] == 1):  # (старт <= поз <= финиш) и (эта лампа включена)
-                    a["без номера"] = 0  # в словарь этой лампы ставлю отметку что она выключена
-                    if i == len(els) - 1:  # если это последний переключатель
-                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                        if c.count("1") == 0:  # если все лампы выключились
-                            d += (els[i] - b).total_seconds()  # записываем результат в секундах
-                        else:  # есть включенные лампы
-                            d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                    else:  # это не последний переключатель
-                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                        if c.count("1") == 0:  # если все лампы выключились
-                            d += (els[i] - b).total_seconds()  # записываем результат в секундах
-                elif els[i] < start_watching and a["без номера"] == 1:  # если (поз < старт) и (эта лампа включена)
-                    a["без номера"] = 0  # в словарь этой лампы ставлю отметку что она выключена
-                elif end_watching <= els[i]:  # если позиция больше либо равна финишу
-                    if a["без номера"] == 1:  # если лампа включена
-                        d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                        break  # прервать цикл
-                    else:  # если лампа выключена
-                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                        if c.count("1") == 0:  # если все лампы выключились
-                            break  # прервать цикл
-                        else:  # если есть включенные лампы
-                            d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                            break  # прервать цикл
+                a, b, d, flag_for_loop = a_piece_of_time_with_a_lot_of_lamps(a, b, d, "без номера", els[i], start_watching, end_watching, i, els)
+                if flag_for_loop == 1:  # если активирован флаг прерыва цикла
+                    break  # прервать цикл
         return int(d)
 
 
