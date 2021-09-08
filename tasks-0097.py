@@ -438,7 +438,7 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
                         a["без номера"] = 0, 0, int(operating.seconds)  # 'номер лампы': (состояние выкл=0, когда включили, ее оставшийся ресурс)
 
                 lighting_duration = 0  # продолжительность освещения помещения
-                light_sensor = 0  # датчик света, будет хранить в себе информацию когда было светло, когда ему дадут питание
+                light_sensor = 0  # датчик изначально пустое значение наблюдений
                 for i in range(0, len(els)):  # пробежка по кнопкам
                     if type(els[i]) == tuple:  # если здесь тип tuple
                         lamp_name, exposure_time = els[i][1], els[i][0]  # имя_лампы, время_воздействия на эту лампу
@@ -455,7 +455,6 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
                                 a[lamp_name] = 1, exposure_time, a[lamp_name][2]  # лампа: (вкл, когда вкл, ресурс)
                             elif a[lamp_name][0] == 1:  # включена
                                 ds = exposure_time - a[lamp_name][1]
-                                print(type(ds))
                                 if type(ds) == timedelta:
                                     ds = ds.total_seconds()
                                 remaining_resource = a[lamp_name][2] - int(ds) # оставшийся ресурс = ресурс - (время воздействия - время включения этой лампы)
@@ -471,138 +470,134 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
                                     for switched_on in a:  # пробежка по словарю в поисках включенной лампы
                                         if (a[switched_on][0] == 1) and (a[switched_on][1] + timedelta(seconds=a[switched_on][2]) > start_watching):  # если эта лампа включена, и она способна просветится до момента подачи питания на датчик
                                             if a[switched_on][1] + timedelta(seconds=a[switched_on][2]) > end_watching:  # если она даже перебежала за момент снятия питания с датчика
-                                                lighting_duration_1 = int((end_watching - start_watching).second)  # выдать в результат как ввесь наблюдаемый промежуток было освещено
+                                                lighting_duration_1 = int((end_watching - start_watching).total_seconds())  # выдать в результат как ввесь наблюдаемый промежуток было освещено
                                             else:  # до финиша не до жила
-                                                lighting_duration_2 = int(((a[switched_on][1] + timedelta(seconds=a[switched_on][2])) - start_watching).second)  #  кусок времени после подачи питания на датчик
+                                                lighting_duration_2 = (a[switched_on][1] + timedelta(seconds=a[switched_on][2])) - start_watching  # кусок времени после подачи питания на датчик
+                                                lighting_duration_2 = int(lighting_duration_2.total_seconds())
                                                 if lighting_duration_2 > lighting_duration_1:  # если эта лампа проработала дольше
                                                     lighting_duration_1 = lighting_duration_2
                                     return lighting_duration_1
+
                     elif exposure_time == start_watching:  # если воздействие попадет так что оно совпадает с подачей питания на датчик
-                        #if i != len(els) - 1:  # если это не последняя позиция
+                        if i != len(els) - 1:  # если это не последняя позиция
+                            if a[lamp_name][0] == 0:  # если лампа выключена, до моента обращния к кнопке
+                                if a[lamp_name][2] != 0:  # если ресурс лампы не исчерпан
+                                    a[lamp_name] = 1, exposure_time, a[lamp_name][2]  # лампа: (вкл, когда вкл, ресурс)
+                                    light_sensor = exposure_time  # подача питания на датчик и включение лампы совпали, датчик сразуже начал это регистрировать
+                                else:  # ресурс лампы исчерпан
+                                    if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
+                                        for switched_on in a:  # пробежка по словарю в поисках включенной лампы
+                                            if a[switched_on][0] == 1:  # если эта лампа включена
+                                                moment_before = exposure_time - a[switched_on][1]  # сколько просветилась до этой позиции (поз - когда вкл)
+                                                remaining_resource = a[switched_on][2] - moment_before.second  # оставшийся ресурс лампы (ресурс - уже просветилась)
+                                                if remaining_resource > 0:  # если ресурс лампы еще остался значит досветилась
+                                                    light_sensor = exposure_time  # было подано питание на датчик, он сразуже начал это регистрировать
+                                                    break  # прервать этот цикл
+                                                else:  # лампа сдохла, вырубим ее в словаре
+                                                    a[switched_on] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
+                            else:  # лампа включена до момента обращения к ней
+                                ds = exposure_time - a[lamp_name][1]  # (время воздействия) - (время включения этой лампы)
+                                if type(ds) == timedelta:  # если здесь тип timedelta
+                                    ds = ds.total_seconds()  # преобразовать в секунды таким способом
+                                remaining_resource = a[lamp_name][2] - int(ds)  # (оставшийся ресурс) = (ресурс) - (время работы до воздействия)
+                                if remaining_resource > 0:  # лампа еще жива
+                                    a[lamp_name] = 0, 0, remaining_resource  # лампа: (выкл, когда вкл, ресурс)
+                                else:  # сгорела
+                                    a[lamp_name] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
+                                if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
+                                    for switched_on in a:  # пробежка по словарю в поисках включенной лампы
+                                        if a[switched_on][0] == 1:  # если эта лампа включена
+                                            moment_before = exposure_time - a[switched_on][1]  # сколько просветилась до этой позиции (поз - когда вкл)
+                                            if type(moment_before) == timedelta:  # если здесь тип timedelta
+                                                moment_before = int(moment_before.total_seconds())  # преобразовать в секунды таким способом
+                                            remaining_resource = a[switched_on][2] - moment_before  # оставшийся ресурс лампы (ресурс - уже просветилась)
+                                            if remaining_resource > 0:  # если ресурс лампы еще остался значит досветилась
+                                                light_sensor = exposure_time  # было подано питание на датчик, он сразуже начал это регистрировать
+                                                break  # прервать этот цикл
+                                            else:  # лампа сдохла, вырубим ее в словаре
+                                                a[switched_on] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
+                        else:  # это воздействие последнее
+                            if a[lamp_name][0] == 0:  # если лампа выключена, до моента обращния к кнопке
+                                if a[lamp_name][2] != 0:  # если ресурс лампы не исчерпан
+                                    max = start_watching + timedelta(seconds=a[lamp_name][2])  # солько еще лампа просветится?
+                                    if max >= end_watching:  # если лампа захватила ввесь диапазон наблюдения
+                                        return int((end_watching - start_watching).total_seconds())
+                                    else:  # не ввесь диапазон
+                                        if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
+                                            for switched_on in a:  # пробежка по словарю в поисках включенной лампы
+                                                if a[switched_on][0] == 1:  # если эта лампа включена
+                                                    moment_before = exposure_time - a[switched_on][1]  # сколько просветилась до этой позиции (поз - когда вкл)
+                                                    if type(moment_before) == timedelta:  # если здесь тип timedelta
+                                                        moment_before = int(moment_before.total_seconds())  # преобразовать в секунды таким способом
+                                                    remaining_resource = a[switched_on][2] - moment_before  # оставшийся ресурс лампы (ресурс - уже просветилась)
+                                                    if remaining_resource > 0:  # если ресурс лампы еще остался значит досветилась
+                                                        if remaining_resource > light_sensor.second:  # если данная лампа просветилась дольше остальных
+                                                            light_sensor = remaining_resource  # было подано питание на датчик, он сразуже начал это регистрировать
+                                            return light_sensor  # выдать больше просветившуюся
+                                        else:  # включенных ламп нету
+                                            return a[lamp_name][2]  # выдать оставшеесь время работы лампы
+                                else:  # сгорела
+                                    if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
+                                        for switched_on in a:  # пробежка по словарю в поисках включенной лампы
+                                            if a[switched_on][0] == 1:  # если эта лампа включена
+                                                moment_before = exposure_time - a[switched_on][1]  # сколько просветилась до этой позиции (поз - когда вкл)
+                                                if type(moment_before) == timedelta:  # если здесь тип timedelta
+                                                    moment_before = int(moment_before.total_seconds())  # преобразовать в секунды таким способом
+                                                remaining_resource = a[switched_on][2] - moment_before  # оставшийся ресурс лампы (ресурс - уже просветилась)
+                                                if remaining_resource > 0:  # если ресурс лампы еще остался значит досветилась
+                                                    if remaining_resource > light_sensor.second:  # если данная лампа просветилась дольше остальных
+                                                        light_sensor = remaining_resource  # было подано питание на датчик, он сразуже начал это регистрировать
+                                        return light_sensor  # выдать больше просветившуюся
+                                    else:  # включенных ламп нету
+                                        return a[lamp_name][2]  # выдать оставшеесь время работы лампы
+                            else:  # лампа включена до момента обращения к ней (последнее воздействие, поз == старту)
+                                a[lamp_name] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
+                                if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
+                                    for switched_on in a:  # пробежка по словарю в поисках включенной лампы
+                                        if a[switched_on][0] == 1:  # если эта лампа включена
+                                            moment_before = exposure_time - a[lamp_name][1]  # сколько просветилась до этой позиции (поз - когда вкл)
+                                            if type(moment_before) == timedelta:  # если здесь тип timedelta
+                                                moment_before = int(moment_before.total_seconds())  # преобразовать в секунды таким способом
+                                            remaining_resource = a[lamp_name][2] - moment_before  # оставшийся ресурс лампы (ресурс - уже просветилась)
+                                            if remaining_resource >= (end_watching - start_watching).total_seconds():  # проработала весь период наблюдения
+                                                return int((end_watching - start_watching).total_seconds())   # вернуть время диапазона наблюдения
+                                            else:  # либо не дожила к старту, либо к финишу
+                                                if remaining_resource > 0:  # если ресурс лампы еще остался значит досветилась
+                                                    if remaining_resource > light_sensor.second:  # если данная лампа просветилась дольше остальных
+                                                        light_sensor = remaining_resource  # было подано питание на датчик, он сразуже начал это регистрировать
+                                    return int(light_sensor.second)  # выдать результата наблюдений
+                                else:  # включенных ламп не осталось
+                                    return 0  # до наблюдения никто не досветился
+                    elif start_watching < exposure_time < end_watching:  # если воздействие попадет так что оно между стартои и финишом наблюдения
+                        if i != len(els) - 1:  # если это не последняя позиция
+                            if a[lamp_name][0] == 0:  # если лампа выключена, до моента обращния к кнопке
+                                if a[lamp_name][2] != 0:  # если ресурс лампы не исчерпан
+                                    if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
+                                        for switched_on in a:  # пробежка по словарю в поисках включенной лампы
+                                            if a[switched_on][0] == 1:  # если эта лампа включена
+                                                moment_before = exposure_time - a[switched_on][1]  # сколько просветилась до этой позиции (поз - когда вкл)
+                                                remaining_resource = a[switched_on][2] - moment_before.second  # оставшийся ресурс лампы (ресурс - уже просветилась)
+                                                if remaining_resource <= 0:  # если ресурса лампы не остался значит сгорела
+                                                    a[switched_on] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
 
-                        if a[lamp_name][2] != 0:  # если ресурс лампы не исчерпан
-                            a[lamp_name] = 1, exposure_time, a[lamp_name][2]  # лампа: (вкл, когда вкл, ресурс)
-                            light_sensor = exposure_time  # так как подача питания на датчик и включение лампы совпали, датчик сразуже начал это регистрировать
-                        else:  # ресурс лампы исчерпан
-                            if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
-                                for switched_on in a:  # пробежка по словарю в поисках включенной лампы
-                                    if a[switched_on][0] == 1:  # если эта лампа включена
-                                        # досветилась ли она, к времени когда подали на датчик питание?
-                                        moment_before = exposure_time - a[switched_on][1]  # момень предпологаемой работы лампы до этого воздействия
-                                        remaining_resource = a[switched_on][2] - moment_before.second  # оставшийся ресурс лампы
-                                        if remaining_resource > 0:  # если ресурс лампы еще остался значит досветилась
-                                            light_sensor = exposure_time  # так как было подано питание на датчик, он сразуже начал это регистрировать
-                                            break  # прервать этот цикл
-                                        else:  # лампа сдохла, вырабим ее в информации про неё
-                                            a[switched_on] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-                    elif a:
-                        pass
-
-
-                    elif (start_watching <= exposure_time < end_watching) and (1 not in lamps_condition):  # (с <= п < ф) и (все выкл)
-                        if a[lamp_name][2] > 0:  # эта лампа еще пригодна для эксплуатации
-                            a[lamp_name] = 1, exposure_time, a[lamp_name][2]  # лампа: (вкл, когда вкл, ресурс)
-                            b = exposure_time  # сохраняю сюда время для старта калькуляции
-                        else:  # данная лампа сгорела
-                            a[lamp_name] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-
-
-                    elif (start_watching <= position_in_time < end_watching) and (a[lamp_number][0] == 0):  # (с <= п < ф) и (эта выкл)
-                        if a[lamp_number][2] > 0:  # эта лампа еще пригодна для эксплуатации
-                            a[lamp_number] = 1, position_in_time, a[lamp_number][2]  # лампа: (вкл, когда вкл, ресурс)
-                            if lamps_condition.count(1) == 1:  # включена одна
-                                b = position_in_time  # сохраняю сюда время для старта калькуляции
-                        else:  # данная лампа сгорела
-                            a[lamp_number] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-                    elif (position_in_time < start_watching) and (a[lamp_number][0] == 0):  # (п < с) и (эта выкл)
-                        if a[lamp_number][2] > 0:  # эта лампа еще пригодна для эксплуатации
-                            a[lamp_number] = 1, position_in_time, a[lamp_number][2]  # лампа: (вкл, когда вкл, ресурс)
-                        else:  # данная лампа сгорела
-                            a[lamp_number] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-                    elif position_in_time < start_watching and a[lamp_number][0] == 1:  # (п < с) и (эта вкл)
-                        y = int((timedelta(seconds=a[lamp_number][2]) - (position_in_time - a[lamp_number][1])).total_seconds())  # оставшийся русурс - (поз сейчас - поз вкл этой лампы)
-                        if y > 0:  # у лампы еще есть ресурс для работы
-                            a[lamp_number] = 0, 0, y  # лампа: (выкл, когда вкл, ресурс)
-                        else:  # лампа сгорела
-                            a[lamp_number] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-
-
-                    elif (start_watching <= position_in_time < end_watching) and (a[lamp_number][0] == 1):  # (с <= п < ф) и (эта вкл)
-                        y = int((timedelta(seconds=a[lamp_number][2]) - (position_in_time - a[lamp_number][1])).total_seconds())  # оставшийся русурс - (поз сейчас - поз вкл этой лампы)
-                        if y > 0:  # у лампы еще остался ресурс для работы
-                            if i == len(els) - 1:  # если это последний переключатель
-                                if lamps_condition.count(1) == 0:  # если все лампы выключились
-                                    d += (position_in_time - b).total_seconds()  # записываем результат в секундах
-                                else:  # есть включенные лампы
-                                    d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                            else:  # это не последний переключатель
-                                if lamps_condition.count(1) == 0:  # если все лампы выключились
-                                    d += (position_in_time - b).total_seconds()  # записываем результат в секундах
-                        else:  # лампа сгорела
-                            # когда? и сколько проработала
-                            a[lamp_number] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-
-
-
-                    elif end_watching <= position_in_time:  # ф <= п
-                        y = int((timedelta(seconds=a[lamp_number][2]) - (position_in_time - a[lamp_number][1])).total_seconds())  # оставшийся русурс - (поз сейчас - поз вкл этой лампы)
-                        if y >= 0:  # лампа жива
-                            if a[lamp_number][0] == 1:  # если лампа включена
-                                d += (end_watching - b).total_seconds()  # счетчик + (финиш - время старта калькуляции)
-                                flag_for_loop = 1  # прервать цикл
-                            else:  # если лампа выключена
-                                if lamps_condition.count(1) == 0:  # все выкл
-                                    flag_for_loop = 1  # прервать цикл
-                                else:  # если есть включенные лампы
-                                    d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                                    flag_for_loop = 1  # прервать цикл
-
-                        else:  # лампа сгорела до этой позиции
-                            pos = a[lamp_number][1] + timedelta(seconds=a[lamp_number][2])  # новая смещенная позиция (поз вкл этой лампы + оставшийся строк службы)
-                            if a[lamp_number][0] == 1:  # если лампа включена + когдато сгорела по пути к этой отметке
-                                if end_watching <= pos:  # если новая позиция больше либо равна финишу
-                                    if a[lamp_number] == 1:  # если лампа включена
-                                        d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                                        flag_for_loop = 1  # прервать цикл
-                                    else:  # если лампа выключена
-                                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                                        if c.count("1") == 0:  # если все лампы выключились
-                                            flag_for_loop = 1  # прервать цикл
-                                        else:  # если есть включенные лампы
-                                            d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                                            flag_for_loop = 1  # прервать цикл
-                                else:  # если новая позиция меньше финиша
-                                    if a[lamp_number] == 1:  # если лампа включена
-                                        d += (pos - b).total_seconds()  # записываем результат в секундах
-                                        flag_for_loop = 1  # прервать цикл
-                                    else:  # если лампа выключена
-                                        c = str(dict.values(a))  # создаем форму для проверки сколько ламп зажжено
-                                        if c.count("1") == 0:  # если все лампы выключились
-                                            flag_for_loop = 1  # прервать цикл
-                                        else:  # если есть включенные лампы, нужно проверить есть ли досветившаясь до финиша
-                                            res = 0  # на всякий пожарный
-                                            for x in a:  # пробежка по всем лампам в поисках зажженных
-                                                if a[x][0] == 1:  # если эта лампа осталась включенной, дожила ли она к финишу
-                                                    y_f = (timedelta(seconds=a[x][2]) - (end_watching - a[x][1])).total_seconds()  # оставшийся строк службы - (поз сейчас - поз вкл этой лампы)
-                                                    if y_f >= 0:  # лампа жива
-                                                        d += (end_watching - b).total_seconds()  # записываем результат в секундах
-                                                        res = 0  # обнулить если есть такой выброс
-                                                        break  # прервать этот цикл
-                                                    else:  # лампа не дожила к финишу, но а вдруг есть еще такая не дожившая но она просветилась дольше этой?
-                                                        lamp_burned_out = a[x][1] - timedelta(seconds=a[x][2])  # лампа перегорела в такоето время (поз вкл этой лампы - оставшийся строк службы)
-                                                        if type(lamp_burned_out) == datetime:  # если здест тип int
-                                                            fgh = (lamp_burned_out).second
-                                                        else:
-                                                            fgh = lamp_burned_out
-                                                        if type(res) == int:  # если здест тип int
-                                                            labss = res
-                                                        if fgh > labss:  # если эта лампа проработала дольше чем предыдущая
-                                                            res = lamp_burned_out  # записываем это время в переменную
-                                            if res != 0:  # если результат не сброшен
-                                                d += (res - b).total_seconds()  # записываем результат в секундах
-                                            flag_for_loop = 1  # прервать цикл вызывающий эту подфункцию
-                return int(lighting_duration)
-
+                                       # №№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№
+                                    a[lamp_name] = 1, exposure_time, a[lamp_name][2]  # лампа: (вкл, когда вкл, ресурс)
+                                    light_sensor = exposure_time  # подача питания на датчик и включение лампы совпали, датчик сразуже начал это регистрировать
+                                else:  # ресурс лампы исчерпан
+                                    if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
+                                        for switched_on in a:  # пробежка по словарю в поисках включенной лампы
+                                            if a[switched_on][0] == 1:  # если эта лампа включена
+                                                moment_before = exposure_time - a[switched_on][1]  # сколько просветилась до этой позиции (поз - когда вкл)
+                                                remaining_resource = a[switched_on][2] - moment_before.second  # оставшийся ресурс лампы (ресурс - уже просветилась)
+                                                if remaining_resource > 0:  # если ресурс лампы еще остался значит досветилась
+                                                    light_sensor = exposure_time  # было подано питание на датчик, он сразуже начал это регистрировать
+                                                    break  # прервать этот цикл
+                                                else:  # лампа сдохла, вырубим ее в словаре
+                                                    a[switched_on] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
+                            else:  # лампа включена до момента обращения к ней
+                        else:  # это воздействие последнее
+                            if a[lamp_name][0] == 0:  # если лампа выключена, до моента обращния к кнопке
+                            else:  # лампа включена до момента обращения к ней
 
 
 
@@ -616,8 +611,13 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
 if __name__ == '__main__':
     print("Пример:")
     print(sum_light([(datetime(2015, 1, 12, 10, 2, 5), 50), (datetime(2015, 1, 12, 10, 2, 7), 3),
+                     (datetime(2015, 1, 12, 10, 2, 10), 50), (datetime(2015, 1, 12, 10, 2, 10), 50)], start_watching=datetime(2015, 1, 12, 10, 2, 10),
+                    end_watching=datetime(2015, 1, 12, 10, 2, 30), operating=timedelta(seconds=20)), "<=== 17", "вариант когда, все действия закончились в момент подачи питаниея на датчик")
+
+
+    print(sum_light([(datetime(2015, 1, 12, 10, 2, 5), 50), (datetime(2015, 1, 12, 10, 2, 7), 3),
                      (datetime(2015, 1, 12, 10, 2, 9), 50)], start_watching=datetime(2015, 1, 12, 10, 2, 10),
-                    end_watching=datetime(2015, 1, 12, 10, 2, 30), operating=timedelta(seconds=20)), "<=== 20")
+                    end_watching=datetime(2015, 1, 12, 10, 2, 30), operating=timedelta(seconds=20)), "<=== 17", "вариант когда, все действия произошли до подачи питания на датчик")
 
 
 
