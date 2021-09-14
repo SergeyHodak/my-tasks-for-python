@@ -430,6 +430,61 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
                                 light_sensor = 0  # обнуление датчика
                 return int(c)
             else:  # ограничено стартом и финишом наблюдения за освещенностю
+                def in_search_on_lamp(a, start_watching, end_watching):  # в поисках включенной лампы
+                    max = 0  # для сравнений
+                    for three in a:  # пробежка по словарю в поисках включенных ламп
+                        if a[three][0] == 1:  # если лампа включена
+                            shot = a[three][1] + timedelta(seconds=a[three][2])  # когда сгорела? (когда вкл + ресурс)
+                            if shot >= end_watching:  # если лампа перегорела после прериода наблюдения
+                                if a[three][1] <= start_watching:  # если включена раньше чем наблюдение
+                                    return int((end_watching - start_watching).seconds)  # отключение - подача пистания на датчик
+                                else:  # включена в диапазоне
+                                    dass = int((end_watching - a[three][1]).seconds)  # отключение - когда вкл лампа
+                                    if dass > max:  # если эта лампа прораболала больше чем другие в наблюдаемом диапазоне
+                                        max = dass
+                            elif start_watching < shot <= end_watching:  # ели сдохла в наблюдаемом диапазоне
+                                if a[three][1] <= start_watching:  # если включена раньше чем наблюдение
+                                    dass = int((shot - start_watching).seconds)  # когда сгорела - старт наблюдения
+                                    if dass > max:  # если эта лампа прораболала больше чем другие в наблюдаемом диапазоне
+                                        max = dass
+                                else:  # включена в диапазоне
+                                    dass = int((shot - a[three][1]).seconds)  # переогорела - когда вкл лампа
+                                    if dass > max:  # если эта лампа прораболала больше чем другие в наблюдаемом диапазоне
+                                        max = dass
+                    return max
+
+                def in_search_on_lamp_1(a, start_watching, max):  # в поисках включенной лампы
+                    for lamp in a:  # в поисках включенных ламп
+                        if a[lamp][0] == 1:  # если эта лампа включена
+                            if a[lamp][1] < start_watching:  # включена до старта наблюдения
+                                moment_before = start_watching - a[lamp][1]  # сколько просветилась до старта (старт - когда вкл)
+                                remaining_resource = a[lamp][2] - moment_before.seconds  # оставшийся ресурс лампы (ресурс - уже просветилась)
+                                if remaining_resource > 0:  # лампа дожила к наблюдению за ней
+                                    jkj = exposure_time - start_watching  # кусок  (воздействие - старт наблюдения)
+                                    if remaining_resource >= jkj.seconds:  # ресурс лампы больше чем этот кусок?
+                                        a[lamp] = 1, exposure_time, int(
+                                            jkj.seconds - remaining_resource)  # лампа: (вкл, когда вкл, ресурс)
+                                        max = int(jkj.seconds)  # ввесь промежуток
+                                    else:  # ресерс не позволил лампе досветится к времени данного воздействия
+                                        a[lamp] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
+                                        if remaining_resource > max:  # если эта лампа просветилась дольше остальных
+                                            max = int(remaining_resource)  # ресурс этой лампы
+                                else:  # сгорела до старта наблюдения
+                                    a[lamp] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
+                            elif start_watching <= a[lamp][1]:  # если включена со стартом наблюдения или после него
+                                gfd = exposure_time - a[lamp][1]  # кусок времени от включения этой лампы до воздействия
+                                if type(gfd) == timedelta:
+                                    gfd = int(gfd.total_seconds())
+                                if a[lamp][2] >= gfd:  # если лампа до жила к этому воздействию
+                                    if gfd > max:  # если эта лампа просветилась дольше остальных
+                                        max = gfd  # время этой лампы
+                                    a[lamp] = 1, exposure_time, a[lamp][2] - gfd  # лампа: (вкл, когда вкл, ресурс)
+                                else:  # не дожила к воздействию
+                                    if gfd > max:  # если эта лампа просветилась дольше остальных
+                                        max = gfd  # время этой лампы
+                                    a[lamp] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
+                    return max, a  # максимально зарегистрированное по длине время освещенности помещения в жтом промежутке
+
                 a = {}  # создадим словарь для состояния ламп
                 for i in range(0, len(els)):  # пробежка по кнопкам
                     if type(els[i]) == tuple:  # если здесь тип tuple
@@ -605,34 +660,8 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
                                     a[lamp_name] = 1, exposure_time, a[lamp_name][2]  # лампа: (вкл, когда вкл, ресурс)
                                 else:  # ресурс лампы исчерпан
                                     if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
-                                        max = 0  # переменная для сравнений, какая лампа дольше просветилась в измеряемом промежутке
-                                        for switched_on in a:  # пробежка по словарю в поисках включенной лампы
-                                            if a[switched_on][0] == 1:  # если эта лампа включена
-                                                if a[switched_on][1] < start_watching:  # если она была включена до старта наблюдения
-                                                    moment_before = start_watching - a[switched_on][1]  # сколько просветилась до старта (старт - когда вкл)
-                                                    remaining_resource = a[switched_on][2] - moment_before.second  # оставшийся ресурс лампы (ресурс - уже просветилась)
-                                                    if remaining_resource > 0:  # лампа дожила к наблюдению за ней
-                                                        jkj = exposure_time - start_watching  # кусок  (позиция воздействия - позиця подключения датчика)
-                                                        if remaining_resource >= jkj.seconds:  # ресурс лампы больше чем этот кусок?
-                                                            a[switched_on] = 1, exposure_time, int(jkj.seconds - remaining_resource)  # лампа: (вкл, когда вкл, ресурс)
-                                                            max = int(jkj.seconds)  # ввесь промежуток
-                                                        else:  # ресерс не позволил лампе досветится к времени данного воздействия
-                                                            a[switched_on] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-                                                            if remaining_resource > max:  # если эта лампа просветилась дольше остальных
-                                                                max = remaining_resource  # ресурс этой лампы
-                                                    else:  # сгорела до старта наблюдения
-                                                        a[switched_on] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-                                                elif start_watching <= a[switched_on][1]:  # если включена со стартом наблюдения или после него
-                                                    gfd = exposure_time - a[switched_on][1]  # кусок времени от включения этой лампы до воздействия
-                                                    if a[switched_on][2] >= gfd.second:  # если лампа до жила к этому воздействию
-                                                        if remaining_resource > max:  # если эта лампа просветилась дольше остальных
-                                                            max = int(gfd.second)  # время этой лампы
-                                                        a[switched_on] = 1, exposure_time, a[switched_on][2] - int(gfd.second)  # лампа: (вкл, когда вкл, ресурс)
-                                                    else:  # не дожила к воздействию
-                                                        if remaining_resource > max:  # если эта лампа просветилась дольше остальных
-                                                            max = int(gfd.second)  # время этой лампы
-                                                        a[switched_on] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-                                        lighting_duration += int(max)  # регистрация времени освещенности помещения во время наблюдения
+                                        max, a = in_search_on_lamp_1(a, start_watching, 0)
+                                        lighting_duration + max  # в поисках включенной лампы
                             else:  # лампа включена до момента обращения к ней
                                 k_time = exposure_time - a[lamp_name][1]  # проработанное время (воздействие - когда включена)
                                 if k_time >= timedelta(seconds=a[lamp_name][2]):  # если проработанное время не исчерпало ресурс лампы
@@ -650,88 +679,16 @@ def sum_light(els: List[Union[datetime, Tuple[datetime, int]]], start_watching: 
                                         max = a[lamp_name][2]  # ресурс
                                     a[lamp_name] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
                                     if 1 in lamps_condition:  # если есть включенные лампы, дожили ли они к этому времени
-                                        for HD in a:  # в поисках включенных ламп
-                                            if a[HD][0] == 1:  # если эта лампа включена
-                                                if a[HD][1] < start_watching:  # если она была включена до старта наблюдения
-                                                    moment_before = start_watching - a[HD][1]  # сколько просветилась до старта (старт - когда вкл)
-                                                    remaining_resource = a[HD][2] - moment_before.second  # оставшийся ресурс лампы (ресурс - уже просветилась)
-                                                    if remaining_resource > 0:  # лампа дожила к наблюдению за ней
-                                                        jkj = exposure_time - start_watching  # кусок  (позиция воздействия - позиця подключения датчика)
-                                                        if remaining_resource >= jkj.seconds:  # ресурс лампы больше чем этот кусок?
-                                                            a[HD] = 1, exposure_time, int(remaining_resource - jkj.seconds)  # лампа: (вкл, когда вкл, ресурс)
-                                                            max = int(jkj.seconds)  # ввесь промежуток
-                                                        else:  # ресерс не позволил лампе досветится к времени данного воздействия
-                                                            a[HD] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-                                                            if remaining_resource > max:  # если эта лампа просветилась дольше остальных
-                                                                max = remaining_resource  # ресурс этой лампы
-                                                    else:  # сгорела до старта наблюдения
-                                                        a[HD] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-                                                elif start_watching <= a[HD][1]:  # если включена со стартом наблюдения или после него
-                                                    gfd = exposure_time - a[HD][1]  # кусок времени от включения этой лампы до воздействия
-                                                    if a[HD][2] >= gfd.second:  # если лампа до жила к этому воздействию
-                                                        if remaining_resource > max:  # если эта лампа просветилась дольше остальных
-                                                            max = int(gfd.seconds)  # время этой лампы
-                                                        a[HD] = 1, exposure_time, a[HD][2] - int(gfd.second)  # лампа: (вкл, когда вкл, ресурс)
-                                                    else:  # не дожила к воздействию
-                                                        if remaining_resource > max:  # если эта лампа просветилась дольше остальных
-                                                            max = int(gfd.seconds)  # время этой лампы
-                                                        a[HD] = 0, 0, 0  # лампа: (выкл, когда вкл, ресурс)
-                                        lighting_duration += int(max)  # регистрация времени освещенности помещения во время наблюдения
+                                        max, a = in_search_on_lamp_1(a, start_watching, max)
+                                        lighting_duration + max  # в поисках включенной лампы
                         else:  # это воздействие последнее
                             if a[lamp_name][0] == 0: # лампа на которую припало воздействия будет (включена) или выключена?
                                 if a[lamp_name][2] > 0:  # если лампа не сдохла
                                     a[lamp_name] = 1, exposure_time, a[lamp_name][2]  # лампа: (вкл, когда вкл, ресурс)
-                            max = 0  # для сравнений
-                            for three in a:  # пробежка по словарю в поисках включенных ламп
-                                if a[three][0] == 1:  # если лампа включена
-                                    shot = a[three][1] + timedelta(seconds=a[three][2])  # когда сгорела? (когда вкл + ресурс)
-                                    if shot >= end_watching:  # если лампа перегорела после прериода наблюдения
-                                        if a[three][1] <= start_watching:  # если включена раньше чем наблюдение
-                                            return int((end_watching - start_watching).seconds)  # отключение - подача пистания на датчик
-                                        else:  # включена в диапазоне
-                                            dass = int((end_watching - a[three][1]).seconds)  # отключение - когда вкл лампа
-                                            if dass > max:  # если эта лампа прораболала больше чем другие в наблюдаемом диапазоне
-                                                max = dass
-                                    elif start_watching < shot <= end_watching:  # ели сдохла в наблюдаемом диапазоне
-                                        if a[three][1] <= start_watching:  # если включена раньше чем наблюдение
-                                            dass = int((shot - start_watching).seconds)  # когда сгорела - старт наблюдения
-                                            if dass > max:  # если эта лампа прораболала больше чем другие в наблюдаемом диапазоне
-                                                max = dass
-                                        else:  # включена в диапазоне
-                                            dass = int((shot - a[three][1]).seconds)  # переогорела - когда вкл лампа
-                                            if dass > max:  # если эта лампа прораболала больше чем другие в наблюдаемом диапазоне
-                                                max = dass
-                            lighting_duration += max
+                            lighting_duration += in_search_on_lamp(a, start_watching, end_watching)
                     elif end_watching <= exposure_time:  # если воздействие попадет так что оно больше или равно финишу наблюдения
-                        max = 0  # для сравнений
-                        for fin in a:  # пробежка по словарю в поисках включенных ламп
-                            if a[fin][0] == 1:  # если лампа включена
-                                shot = a[fin][1] + timedelta(seconds=a[fin][2])  # когда сгорела? (когда вкл + ресурс)
-                                if shot >= end_watching:  # если лампа перегорела после прериода наблюдения
-                                    if a[fin][1] <= start_watching:  # если включена раньше чем наблюдение
-                                        return int((end_watching - start_watching).seconds)  # отключение - подача пистания на датчик
-                                    else:  # включена в диапазоне
-                                        dass = int((end_watching - a[fin][1]).seconds)  # отключение - когда вкл лампа
-                                        if dass > max:  # если эта лампа прораболала больше чем другие в наблюдаемом диапазоне
-                                            max = dass
-                                elif start_watching < shot <= end_watching:  # ели сдохла в наблюдаемом диапазоне
-                                    if a[fin][1] <= start_watching:  # если включена раньше чем наблюдение
-                                        dass = int((shot - start_watching).seconds)  # когда сгорела - старт наблюдения
-                                        if dass > max:  # если эта лампа прораболала больше чем другие в наблюдаемом диапазоне
-                                            max = dass
-                                    else:  # включена в диапазоне
-                                        dass = int((shot - a[fin][1]).seconds)  # переогорела - когда вкл лампа
-                                        if dass > max:  # если эта лампа прораболала больше чем другие в наблюдаемом диапазоне
-                                            max = dass
-                        return lighting_duration + max
+                        return lighting_duration + in_search_on_lamp(a, start_watching, end_watching)
                 return lighting_duration
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
@@ -739,13 +696,13 @@ if __name__ == '__main__':
     print(sum_light([(datetime(2015, 1, 12, 10, 1, 0), 2), (datetime(2015, 1, 12, 10, 1, 1), 3),
                      (datetime(2015, 1, 12, 10, 1, 3), 2), (datetime(2015, 1, 12, 10, 1, 4), 0)],
                     start_watching=datetime(2015, 1, 12, 10, 1, 2), end_watching=datetime(2015, 1, 12, 10, 1, 30),
-                    operating=timedelta(seconds=2)), "<=== 3", "вариант когда, начало до старта конец между")
+                    operating=timedelta(seconds=2)), " <=== 3")
     print(sum_light([(datetime(2015, 1, 12, 10, 2, 5), 50), (datetime(2015, 1, 12, 10, 2, 7), 3),
                      (datetime(2015, 1, 12, 10, 2, 10), 50), (datetime(2015, 1, 12, 10, 2, 10), 50)], start_watching=datetime(2015, 1, 12, 10, 2, 10),
-                    end_watching=datetime(2015, 1, 12, 10, 2, 30), operating=timedelta(seconds=20)), "<=== 17", "вариант когда, все действия закончились в момент подачи питаниея на датчик")
+                    end_watching=datetime(2015, 1, 12, 10, 2, 30), operating=timedelta(seconds=20)), "<=== 17")
     print(sum_light([(datetime(2015, 1, 12, 10, 2, 5), 50), (datetime(2015, 1, 12, 10, 2, 7), 3),
                      (datetime(2015, 1, 12, 10, 2, 9), 50)], start_watching=datetime(2015, 1, 12, 10, 2, 10),
-                    end_watching=datetime(2015, 1, 12, 10, 2, 30), operating=timedelta(seconds=20)), "<=== 17", "вариант когда, все действия произошли до подачи питания на датчик")
+                    end_watching=datetime(2015, 1, 12, 10, 2, 30), operating=timedelta(seconds=20)), "<=== 17")
     print(sum_light([(datetime(2015, 1, 12, 10, 0, 10), 3), datetime(2015, 1, 12, 10, 0, 20),
                      (datetime(2015, 1, 12, 10, 0, 30), 3), (datetime(2015, 1, 12, 10, 0, 30), 2)],
                     start_watching=datetime(2015, 1, 12, 10, 0, 10), end_watching=datetime(2015, 1, 12, 10, 0, 30),
@@ -767,13 +724,11 @@ if __name__ == '__main__':
                      datetime(2015, 1, 12, 10, 0, 10), (datetime(2015, 1, 12, 10, 1, 0), 2)],
                     operating=timedelta(seconds=100)), "<=== 60")
     print(sum_light([datetime(2015, 1, 12, 10, 0, 0), datetime(2015, 1, 12, 10, 0, 10)],
-                    operating=timedelta(seconds=5)), "<=== 5")
-
+                    operating=timedelta(seconds=5)), " <=== 5")
     print(sum_light([(datetime(2015, 1, 12, 10, 0, 10), 3), datetime(2015, 1, 12, 10, 0, 20),
                      (datetime(2015, 1, 12, 10, 0, 30), 3), (datetime(2015, 1, 12, 10, 0, 30), 2)],
                     start_watching=datetime(2015, 1, 12, 10, 0, 10), end_watching=datetime(2015, 1, 12, 10, 0, 30),
                     operating=timedelta(seconds=5)), "<=== 10")
-
     assert sum_light([datetime(2015, 1, 12, 10, 0, 0), (datetime(2015, 1, 12, 10, 0, 0), 2),
                       datetime(2015, 1, 12, 10, 0, 10), (datetime(2015, 1, 12, 10, 1, 0), 2)]) == 60
     assert sum_light([datetime(2015, 1, 12, 10, 0, 0), datetime(2015, 1, 12, 10, 0, 10),
